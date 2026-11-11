@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
@@ -370,7 +371,7 @@ class UtxoApi {
     )).data.first;
 
     // sign safe transaction with the private key registered in the safe
-    final signedRaw = signSafeTransaction(
+    final signedRaw = await _signSafeTransactionInIsolate(
       tx: tx,
       utxos: utxos,
       views: verifiedTx.views!,
@@ -599,13 +600,13 @@ class UtxoApi {
         (element) => element.requestId == feeRequestId,
       );
 
-      final singedWithdrawalRaw = signSafeTransaction(
+      final singedWithdrawalRaw = await _signSafeTransactionInIsolate(
         tx: withdrawalTx,
         utxos: utxos,
         views: withdrawalData.views!,
         privateKey: spendKey,
       );
-      final singedFeeRaw = signSafeTransaction(
+      final singedFeeRaw = await _signSafeTransactionInIsolate(
         tx: feeTx,
         utxos: feeUtxos,
         views: feeData.views!,
@@ -671,7 +672,7 @@ class UtxoApi {
       final verifiedTx = (await transactionRequest(
         [TransactionRequest(requestId: requestId, raw: raw)],
       )).data.first;
-      final signedRaw = signSafeTransaction(
+      final signedRaw = await _signSafeTransactionInIsolate(
         tx: tx,
         utxos: utxos,
         views: verifiedTx.views!,
@@ -707,3 +708,19 @@ class UtxoApi {
     }
   }
 }
+
+/// Returns the signed raw transaction, computed on a new isolate so that
+/// the calling isolate keeps handling input events.
+Future<String> _signSafeTransactionInIsolate({
+  required SafeTransaction tx,
+  required List<SafeUtxoOutput> utxos,
+  required List<String> views,
+  required Key privateKey,
+}) => Isolate.run(
+  () => signSafeTransaction(
+    tx: tx,
+    utxos: utxos,
+    views: views,
+    privateKey: privateKey,
+  ),
+);

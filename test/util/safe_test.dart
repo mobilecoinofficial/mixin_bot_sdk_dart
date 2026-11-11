@@ -1,8 +1,10 @@
+import 'dart:isolate';
+
 import 'package:mixin_bot_sdk_dart/mixin_bot_sdk_dart.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('Test for safe transaction signature', () {
+  test('Test for safe transaction signature', () async {
     const raw1 =
         '77770005b9f49cf777dc4d03bc54cd1367eebca319f8603ea1ce18910d09e2c540c630d80001c513ffcc684e9585c76bd76245aa7d2def3b9f147422b59ab91db7852c9d97dd000000000000000000010000000405f5e1000001a6c306c3137c2bf4a8bfc95ea5165f7777020916aa36ee6ec394beb9a1e6a164286d4f092015ea327ba12145edd40ddede1bdd80f777c249128d38176e352a130003fffe010000000000000009746573742d6d656d6f0000';
     const raw2 =
@@ -74,5 +76,15 @@ void main() {
       privateKey: priv,
     );
     expect(signedRaw, raw2);
+
+    final signedRawInIsolate = await Isolate.run(
+      () => signSafeTransaction(
+        tx: tx,
+        utxos: utxos,
+        views: views,
+        privateKey: priv,
+      ),
+    );
+    expect(signedRawInIsolate, raw2);
   });
 }
