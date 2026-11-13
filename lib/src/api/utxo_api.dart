@@ -313,7 +313,12 @@ class UtxoApi {
     String? transactionRequestId,
     MixinVerificationRelay? verificationRelay,
     MixinTransactionRelay? transactionRelay,
+
+    /// Signs the transaction with this callback. When absent, the transaction
+    /// is signed with signSafeTransactionInIsolate.
+    SafeTransactionSigner? signer,
   }) async {
+    final sign = signer ?? signSafeTransactionInIsolate;
     assert(receiverIds.isNotEmpty, 'receiverIds is empty');
     final rIds = receiverIds.toList()..sort();
 
@@ -370,7 +375,7 @@ class UtxoApi {
     )).data.first;
 
     // sign safe transaction with the private key registered in the safe
-    final signedRaw = signSafeTransaction(
+    final signedRaw = await sign(
       tx: tx,
       utxos: utxos,
       views: verifiedTx.views!,
@@ -433,6 +438,10 @@ class UtxoApi {
     String? transactionRequestId,
     MixinVerificationRelay? verificationRelay,
     MixinTransactionRelay? transactionRelay,
+
+    /// Signs the transaction with this callback. When absent, the transaction
+    /// is signed with signSafeTransactionInIsolate.
+    SafeTransactionSigner? signer,
   }) async {
     final token = (await _tokenApi.getAssetById(asset)).data;
     final chain = token.chainId == token.assetId
@@ -471,6 +480,7 @@ class UtxoApi {
       transactionRequestId: transactionRequestId,
       transactions: transactionRelay ?? transactions,
       transactionRequest: verificationRelay ?? transactionRequest,
+      signer: signer,
     );
   }
 
@@ -488,7 +498,9 @@ class UtxoApi {
     int threshold = 1,
     String? memo,
     String? transactionRequestId,
+    SafeTransactionSigner? signer,
   }) async {
+    final sign = signer ?? signSafeTransactionInIsolate;
     final isFeeDifferenceAsset = feeAsset != asset;
 
     if (isFeeDifferenceAsset) {
@@ -599,13 +611,13 @@ class UtxoApi {
         (element) => element.requestId == feeRequestId,
       );
 
-      final singedWithdrawalRaw = signSafeTransaction(
+      final singedWithdrawalRaw = await sign(
         tx: withdrawalTx,
         utxos: utxos,
         views: withdrawalData.views!,
         privateKey: spendKey,
       );
-      final singedFeeRaw = signSafeTransaction(
+      final singedFeeRaw = await sign(
         tx: feeTx,
         utxos: feeUtxos,
         views: feeData.views!,
@@ -671,7 +683,7 @@ class UtxoApi {
       final verifiedTx = (await transactionRequest(
         [TransactionRequest(requestId: requestId, raw: raw)],
       )).data.first;
-      final signedRaw = signSafeTransaction(
+      final signedRaw = await sign(
         tx: tx,
         utxos: utxos,
         views: verifiedTx.views!,
@@ -690,6 +702,10 @@ class UtxoApi {
     required Key spendKey,
     required String asset,
     String? transactionRequestId,
+
+    /// Signs the transaction with this callback. When absent, the transaction
+    /// is signed with signSafeTransactionInIsolate.
+    SafeTransactionSigner? signer,
   }) async {
     assert(address.members.isNotEmpty, 'members is empty');
     switch (address.memberType) {
@@ -700,6 +716,7 @@ class UtxoApi {
           asset: asset,
           spendKey: spendKey,
           transactionRequestId: transactionRequestId,
+          signer: signer,
         );
       case MixMemberType.xin:
         assert(address.members.length == 1, 'members length is not 1');
