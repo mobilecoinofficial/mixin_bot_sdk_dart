@@ -3,9 +3,12 @@ import 'dart:convert';
 import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
-import 'package:uuid/uuid.dart';
 
 import '../mixin_bot_sdk_dart.dart';
+
+// Match the Go and Node.js bot SDKs, whose tokens expire 5 minutes after they
+// are issued.
+const _authTokenLifetime = Duration(minutes: 5);
 
 String signAuthTokenWithRSA(
   String? userId,
@@ -15,6 +18,7 @@ String signAuthTokenWithRSA(
   String method,
   String uri,
   String body,
+  String requestId,
 ) => _signAuthenticationToken(
   userId,
   sessionId,
@@ -23,6 +27,7 @@ String signAuthTokenWithRSA(
   method,
   uri,
   body,
+  requestId,
   true,
 );
 
@@ -33,7 +38,8 @@ String signAuthTokenWithEdDSA(
   String? scp,
   String method,
   String uri,
-  String body, {
+  String body,
+  String requestId, {
   String? aud,
 }) => _signAuthenticationToken(
   userId,
@@ -43,6 +49,7 @@ String signAuthTokenWithEdDSA(
   method,
   uri,
   body,
+  requestId,
   false,
   aud: aud,
 );
@@ -55,6 +62,7 @@ String _signAuthenticationToken(
   String method,
   String uri,
   String body,
+  String requestId,
   bool isRSA, {
   String? aud,
 }) {
@@ -66,18 +74,19 @@ String _signAuthenticationToken(
     return '';
   }
 
-  final bytes = utf8.encode(method + uri + body);
+  final bs = utf8.encode(method + uri + body);
 
-  final hash = sha256.convert(bytes);
+  final hash = sha256.convert(bs);
+  final issuedAt = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   final jwt = JWT({
     'uid': userId,
     'sid': sessionId,
-    'iat': (DateTime.now().millisecondsSinceEpoch / 1000).floor(),
-    'exp':
-        (DateTime.now().add(const Duration(days: 365)).millisecondsSinceEpoch /
-                1000)
-            .floor(),
-    'jti': const Uuid().v4(),
+    'iat': issuedAt,
+    'exp': issuedAt + _authTokenLifetime.inSeconds,
+    // The server rejects a token whose jti is not the X-Request-Id of the
+    // request (request_id_mismatch), so the caller sends this ID in that
+    // header.
+    'jti': requestId,
     'sig': hex.encode(hash.bytes),
     'scp': scp ?? 'FULL',
   });
