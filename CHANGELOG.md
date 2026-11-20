@@ -1,3 +1,22 @@
+## 2.0.0
+* **Breaking:** `signAuthTokenWithEdDSA` and `signAuthTokenWithRSA` take a `requestId` after `body`, which becomes the token's `jti`. The server now rejects a token whose `jti` is not the `X-Request-Id` of the request (`request_id_mismatch`). Send the same ID in that header.
+* `Client` sends an `X-Request-Id` on every request and signs it as the `jti`. An `X-Request-Id` set by the caller is kept.
+* **Breaking:** remove the deprecated `AccountApi.createUsers` (use `UserApi.createUsers`), `AccountApi.deactiveVerification` (use `deactivateVerification`), `AccountApi.deactive` (use `deactivate`), `Client.transferApi` (use `utxoApi`) and `buildSafeTransactionRecipient` (use `UserTransactionRecipient`).
+* The log interceptor prints `<redacted>` for the `Authorization` header, and prints nothing at `HttpLogLevel.none` (#154).
+
+## 1.5.4
+* Authentication tokens expire 5 minutes after `iat` (was 365 days), as in the Go and Node.js bot SDKs. `iat` and `exp` come from the same clock read.
+* Add `SafeUtxoOutput.inscriptionHash` and `createSafeDepositEntries` (#156).
+
+## 1.5.3
+* Require `equatable: ^2.1.0`. Models use `with Equatable`, which fails to compile against equatable 2.0.x ("Can't use 'Equatable' as a mixin because it has constructors").
+
+## 1.5.2
+* Send a default `User-Agent: mixin_bot_sdk_dart/<version>` header (not on web). A `User-Agent` set in `dioOptions` takes precedence.
+
+## 1.5.1
+* Cache enum conversions by enum values and input, so converting the same JSON value again does not scan the values or allocate strings.
+
 ## 1.5.0
 * update version
 

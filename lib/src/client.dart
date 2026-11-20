@@ -1,10 +1,13 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
 
 import '../mixin_bot_sdk_dart.dart';
 
 const mixinBaseUrl0 = 'https://api.mixin.one';
+
+const _isWeb = bool.fromEnvironment('dart.library.js_interop');
 
 class Client {
   Client({
@@ -23,6 +26,11 @@ class Client {
     _dio.options.baseUrl = baseUrl ?? mixinBaseUrl0;
     _dio.options.responseType = ResponseType.json;
     _dio.options.contentType = Headers.jsonContentType;
+    // Browsers refuse to let scripts set User-Agent, so only set it off the web.
+    // A User-Agent passed in dioOptions takes precedence.
+    if (!_isWeb) {
+      _dio.options.headers.putIfAbsent('User-Agent', () => defaultUserAgent);
+    }
     final transformer = dio.transformer;
     if (transformer is SyncTransformer && jsonDecodeCallback != null) {
       transformer.jsonDecodeCallback = jsonDecodeCallback;
@@ -40,6 +48,10 @@ class Client {
                 body = jsonEncode(options.data);
               }
 
+              final requestId =
+                  options.headers['X-Request-Id'] as String? ??
+                  const Uuid().v4();
+              options.headers['X-Request-Id'] = requestId;
               final authToken =
                   accessToken ??
                   signAuthTokenWithEdDSA(
@@ -50,6 +62,7 @@ class Client {
                     options.method,
                     options.uri.toString().substring(options.baseUrl.length),
                     body,
+                    requestId,
                   );
               options.headers['Authorization'] = 'Bearer $authToken';
               handler.next(options);
@@ -83,7 +96,6 @@ class Client {
     _tokenApi = TokenApi(dio: _dio);
     _oauthApi = OauthApi(dio: dio);
     _snapshotApi = SnapshotApi(dio: dio);
-    _transferApi = TransferApi(dio: dio);
     _addressApi = AddressApi(dio: dio);
     _multisigApi = MultisigApi(dio: dio);
     _collectibleApi = CollectibleApi(dio: dio);
@@ -103,7 +115,6 @@ class Client {
   late TokenApi _tokenApi;
   late OauthApi _oauthApi;
   late SnapshotApi _snapshotApi;
-  late TransferApi _transferApi;
   late AddressApi _addressApi;
   late MultisigApi _multisigApi;
   late CollectibleApi _collectibleApi;
@@ -133,9 +144,6 @@ class Client {
   OauthApi get oauthApi => _oauthApi;
 
   SnapshotApi get snapshotApi => _snapshotApi;
-
-  @Deprecated('mixin has migrated to safe, use utxoApi instead.')
-  TransferApi get transferApi => _transferApi;
 
   AddressApi get addressApi => _addressApi;
 
